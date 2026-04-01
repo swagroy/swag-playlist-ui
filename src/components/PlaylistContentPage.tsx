@@ -72,6 +72,9 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
   const [videoMenuPos, setVideoMenuPos] = useState<{top: number, left: number} | null>(null);
   const [shareMenuOpenId, setShareMenuOpenId] = useState<string | null>(null);
   const [shareMenuPos, setShareMenuPos] = useState<{top: number, left: number} | null>(null);
+  const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+  const [selectedCoverImg, setSelectedCoverImg] = useState<string | null>(null);
+  const [currentCover, setCurrentCover] = useState<string>(playlist.videos[0]?.thumbnail || '');
   const videoBtnRefs = useRef<{[id: string]: HTMLButtonElement | null}>({});
   const videoBtnRefsDesktop = useRef<{[id: string]: HTMLButtonElement | null}>({});
   const shareBtnRefs = useRef<{[id: string]: HTMLButtonElement | null}>({});
@@ -390,20 +393,35 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
       {/* 內容區域（桌機/手機共用） */}
       <div className="flex flex-col md:flex-row md:items-stretch w-full px-4 md:px-8 py-6 md:py-10 gap-4 md:gap-8">
         {/* 左側播放清單資訊卡片（Desktop 作為側邊欄） */}
-        <div className="flex flex-col justify-between items-start w-full md:w-auto md:max-w-sm bg-[#232323] border border-white/5 rounded-2xl shadow-xl p-8 flex-shrink-0 md:flex-shrink-0 md:flex-basis-1/3 min-h-[550px] md:min-h-[600px] md:sticky md:top-8 md:self-start">
+        <div className="flex flex-col justify-between items-start w-full md:w-72 lg:w-80 bg-[#232323] border border-white/5 rounded-2xl shadow-xl p-4 md:px-4 md:pt-4 md:pb-6 flex-shrink-0 min-h-[550px] md:min-h-[600px] md:sticky md:top-8 md:self-start">
           {/* 桌機版返回按鈕 */}
           <button
-            className="self-start mb-4 flex items-center gap-2 bg-gray-800 text-gray-200 text-sm font-medium rounded px-4 py-1.5 hover:bg-gray-700 transition shadow-none hidden md:flex"
+            className="self-start mb-3 flex items-center gap-2 bg-gray-800 text-gray-200 text-sm font-medium rounded px-4 py-1.5 hover:bg-gray-700 transition shadow-none hidden md:flex"
             onClick={() => onBack ? onBack() : window.history.back()}
           >
             <FaChevronLeft className="text-base" /> 回到播放清單
           </button>
           <div className="w-full">
-            <img src={mockPlaylist.cover} alt="cover" className="w-full md:w-60 h-48 md:h-40 object-cover rounded-2xl" />
-            <div className="text-2xl md:text-3xl font-extrabold mt-8 mb-3 w-full text-left bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-transparent">
-              <span className="truncate">{mockPlaylist.title}</span>
+            {/* 封面圖容器：全寬撐滿側邊欄，桌機加深陰影讓圖浮起 */}
+            <div className="relative w-full">
+              <img
+                src={currentCover || mockPlaylist.cover}
+                alt="cover"
+                className="w-full aspect-square object-cover rounded-xl shadow-2xl"
+              />
+              {/* 編輯按鈕：常駐顯示，桌機 hover 放大，手機確保足夠點擊熱區 */}
+              <button
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-transform duration-200 hover:scale-110 active:scale-95 focus:outline-none"
+                onClick={() => { setSelectedCoverImg(null); setIsCoverModalOpen(true); }}
+                title="更換封面"
+              >
+                <Pencil size={15} />
+              </button>
             </div>
-            <div className="text-zinc-500 text-sm md:text-sm mb-2 w-full text-left">
+            <div className="text-xl md:text-4xl font-extrabold mt-4 mb-2 w-full text-left bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-transparent leading-tight">
+              <span className="block break-words">{mockPlaylist.title}</span>
+            </div>
+            <div className="text-gray-400 text-sm mb-3 mt-1 w-full text-left">
               {mockPlaylist.description}
             </div>
             <div className="text-[11px] text-zinc-500 mt-4 w-full text-left">
@@ -413,21 +431,12 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
             </div>
           </div>
 
-          {/* 手機版：一大四小，單行佈局（回到之前確認過 OK 的版本） */}
-          <div className="flex items-center w-full gap-4 mb-3 md:hidden">
-            <motion.button
-              className="bg-[#00D2BE] text-[#191919] font-bold text-sm h-11 px-4 rounded-full hover:bg-[#00bfa6] active:scale-95 transition flex items-center gap-2 justify-center w-[60%] whitespace-nowrap"
-              onClick={() => setPlayer({ open: true, index: 0, list: sorted, playing: true, progress: 0 })}
-              aria-label="全部播放"
-              whileTap={{ scale: 0.96 }}
-            >
-              <FaPlay className="text-lg" />
-              全部播放
-            </motion.button>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 手機版：兩行佈局 — 第一行四顆圖示按鈕，第二行全寬播放按鈕 */}
+          <div className="flex flex-col w-full gap-3 mt-4 md:hidden">
+            {/* 第一行：四顆次要功能按鈕（均分寬度） */}
+            <div className="grid grid-cols-4 gap-2 w-full">
               <motion.button
-                className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150 flex-shrink-0"
+                className="h-11 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150"
                 aria-label="隨機播放"
                 title="隨機"
                 onClick={() => {
@@ -439,7 +448,7 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
                 <Shuffle size={20} stroke="#ffffff" strokeWidth={2.5} />
               </motion.button>
               <motion.button
-                className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150 flex-shrink-0"
+                className="h-11 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150"
                 aria-label="排序"
                 title="排序"
                 onClick={() => setIsReorderOpen(true)}
@@ -448,7 +457,7 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
                 <ArrowUpDown size={20} stroke="#ffffff" strokeWidth={2.5} />
               </motion.button>
               <motion.button
-                className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150 flex-shrink-0"
+                className="h-11 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150"
                 aria-label="新增"
                 title="新增"
                 onClick={() => toast('尚未提供新增內容功能')}
@@ -458,7 +467,7 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
               </motion.button>
               <motion.button
                 ref={moreBtnRef}
-                className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150 flex-shrink-0"
+                className="h-11 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150"
                 aria-label="更多"
                 title="更多"
                 onClick={(e) => {
@@ -470,20 +479,22 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
                 <MoreHorizontal size={20} stroke="#ffffff" strokeWidth={2.5} />
               </motion.button>
             </div>
+
+            {/* 第二行：全部播放（全寬） */}
+            <motion.button
+              className="w-full bg-[#00D2BE] text-[#191919] font-bold text-sm py-3.5 rounded-full hover:bg-[#00bfa6] active:scale-95 transition flex items-center gap-2 justify-center whitespace-nowrap mt-1"
+              onClick={() => setPlayer({ open: true, index: 0, list: sorted, playing: true, progress: 0 })}
+              aria-label="全部播放"
+              whileTap={{ scale: 0.96 }}
+            >
+              <FaPlay className="text-base" />
+              全部播放
+            </motion.button>
           </div>
 
-          {/* 桌機版側邊欄：兩行佈局（第一行大按鈕，第二行四顆圓形按鈕） */}
+          {/* 桌機版側邊欄：兩行佈局（第一行四顆圓形按鈕，第二行大按鈕） */}
           <div className="hidden md:flex w-full flex-col gap-0 mt-6 pt-8 border-t border-white/5">
-            <motion.button
-              className="w-full h-12 bg-[#00D2BE] text-[#191919] font-bold px-5 rounded-full hover:bg-[#00bfa6] active:scale-95 transition flex items-center gap-2 justify-center whitespace-nowrap"
-              onClick={() => setPlayer({ open: true, index: 0, list: sorted, playing: true, progress: 0 })}
-              aria-label="全部播放"
-              whileTap={{ scale: 0.96 }}
-            >
-              <FaPlay className="text-lg" />
-              全部播放
-            </motion.button>
-            <div className="grid grid-cols-4 gap-2 w-full mt-4">
+            <div className="grid grid-cols-4 gap-2 w-full">
               <motion.button
                 className="w-full h-10 min-w-[40px] min-h-[40px] p-0 border border-white/10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-transform transition-colors duration-150"
                 aria-label="隨機播放"
@@ -528,6 +539,16 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
                 <MoreHorizontal size={20} stroke="#ffffff" strokeWidth={2.5} />
               </motion.button>
             </div>
+            {/* 第二行：全部播放（全寬） */}
+            <motion.button
+              className="w-full h-12 bg-[#00D2BE] text-[#191919] font-bold px-5 rounded-full hover:bg-[#00bfa6] active:scale-95 transition flex items-center gap-2 justify-center whitespace-nowrap mt-4"
+              onClick={() => setPlayer({ open: true, index: 0, list: sorted, playing: true, progress: 0 })}
+              aria-label="全部播放"
+              whileTap={{ scale: 0.96 }}
+            >
+              <FaPlay className="text-lg" />
+              全部播放
+            </motion.button>
           </div>
 
           {!isMobile && moreMenuOpen && moreMenuPos && ReactDOM.createPortal(
@@ -737,8 +758,8 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
         </div>
         {/* 右側內容列表區塊（原本內容不變） */}
         <div className="flex-1 flex flex-col w-full">
-          {/* 手機版分類 tab */}
-          <div className="md:hidden mb-4">
+          {/* 手機版分類 tab — sticky 固定在頁頂 */}
+          <div className="md:hidden sticky top-0 z-30 bg-[#191919]/95 backdrop-blur-xl mb-4">
             <div className="flex gap-2 overflow-x-auto pb-2 border-b border-white/5">
               {typeTabs.map(tabItem => (
                 <button
@@ -999,6 +1020,8 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
               <div className="text-center text-zinc-500 text-sm py-16 tracking-wide">此分類下尚無內容</div>
             )}
           </div>
+          {/* 底部安全區：避免最後一項緊貼 iPhone Home Indicator */}
+          <div className="h-24 md:h-0" />
         </div>
       </div>
       <CreatePlaylistModal
@@ -1146,6 +1169,85 @@ const PlaylistContentPage: React.FC<PlaylistContentPageProps> = ({ onBack, playl
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* 封面選擇 Modal */}
+      {isCoverModalOpen && ReactDOM.createPortal(
+        <AnimatePresence>
+          <motion.div
+            key="cover-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsCoverModalOpen(false)}
+          >
+            <motion.div
+              key="cover-modal-panel"
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="bg-[#191919] border border-white/10 rounded-2xl w-full max-w-lg mx-4 p-6 flex flex-col gap-5"
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-bold text-zinc-100">選擇封面圖</h2>
+
+              {/* 縮圖網格 */}
+              <div className="grid grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-1">
+                {items.map(item => (
+                  <button
+                    key={item.id}
+                    className={`relative aspect-video overflow-hidden rounded-xl border-2 transition-all duration-150 focus:outline-none ${
+                      selectedCoverImg === item.thumbnail
+                        ? 'border-[#00D2BE] scale-[0.97]'
+                        : 'border-transparent hover:border-white/30'
+                    }`}
+                    onClick={() => setSelectedCoverImg(item.thumbnail)}
+                  >
+                    <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                    {selectedCoverImg === item.thumbnail && (
+                      <div className="absolute inset-0 bg-[#00D2BE]/20 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-[#00D2BE] flex items-center justify-center shadow-lg">
+                          <svg viewBox="0 0 12 12" fill="none" className="w-3.5 h-3.5">
+                            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* 按鈕列 */}
+              <div className="flex gap-3 justify-end pt-1 border-t border-white/5">
+                <button
+                  className="px-5 py-2.5 rounded-xl bg-[#232323] border border-white/5 text-zinc-300 text-sm font-medium hover:bg-[#2a2a2a] transition-colors"
+                  onClick={() => setIsCoverModalOpen(false)}
+                >
+                  取消
+                </button>
+                <button
+                  className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                    selectedCoverImg
+                      ? 'bg-[#00D2BE] text-[#191919] hover:bg-[#00bfa6]'
+                      : 'bg-white/10 text-zinc-500 cursor-not-allowed'
+                  }`}
+                  disabled={!selectedCoverImg}
+                  onClick={() => {
+                    if (selectedCoverImg) {
+                      setCurrentCover(selectedCoverImg);
+                      setIsCoverModalOpen(false);
+                    }
+                  }}
+                >
+                  確認更換
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body
       )}
     </div>
   );
